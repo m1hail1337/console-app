@@ -1,52 +1,92 @@
-package main.java;
-
+import kotlin.Pair;
 import main.kotlin.TailKt;
-import org.kohsuke.args4j.*;
-import java.util.List;
+import org.kohsuke.args4j.Argument;
+import org.kohsuke.args4j.CmdLineException;
+import org.kohsuke.args4j.CmdLineParser;
+import org.kohsuke.args4j.Option;
 
+import java.io.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Launcher {
     @Option(name = "-o", usage = "Output File")
-    String outFile;
+    File outFile;
 
-    @Option(name = "-с", usage = "How much symbols will earned", forbids = {"-n"})
+    @Option(name = "-c", usage = "How much symbols will earned", forbids = {"-n"})
     Integer symbols;
 
     @Option(name = "-n", usage = "How much strings will earned", forbids = {"-c"})
     Integer strings;
 
     @Argument
-    List<String> arguments;
+    List<File> inputFiles;
 
     public static void main(String[] args) {
         new Launcher().parse(args);
     }
 
-    private void parse(String[] args) {
+
+    public void parse(String[] args) {
         CmdLineParser parser = new CmdLineParser(this);
         try {
             parser.parseArgument(args);
-            if (strings == null & symbols == null ) strings = 10;
-            if (arguments.isEmpty() || (!arguments.get(0).equals("tail"))) {
-                System.err.println("Error entering arguments (for correct input, see the example)");
-                System.err.println("tail [options...] arguments...");
-                parser.printUsage(System.err);
-                System.err.println("\nExample: tail [-c num|-n num] [-o outputname.txt] inputname1.txt inputname2.txt");
-                throw new IllegalArgumentException("");
-            }
         } catch (CmdLineException e) {
-            System.err.println(e.getMessage());
-            System.err.println("tail [options...] arguments...");
-            parser.printUsage(System.err);
+            System.err.println(e.getLocalizedMessage());
             System.err.println("\nExample: tail [-c num|-n num] [-o outputname.txt] inputname1.txt inputname2.txt");
+            System.exit(-1);
         }
-        if (arguments.size() == 1 && arguments.get(0).equals("tail")) {
-            TailKt.tail4CmdInput(symbols); // т.к. в таком случае на вход только 1 строка
+
+        if (strings == null && symbols == null ) strings = 10;
+
+        List<Pair<BufferedReader, String>> inputs = new ArrayList<>();
+
+        if (inputFiles == null || inputFiles.isEmpty()) {
+            inputs.add(new Pair<>(new BufferedReader(new InputStreamReader(System.in)), null));
+        } else {
+            // проверка на существование входных файлов
+            for (File file: inputFiles) {
+                if (!file.isFile()) {
+                    System.err.println(file.getPath() + " does not exist!");
+                    System.exit(-1);
+                }
+
+                try {
+                    inputs.add(new Pair<>(new BufferedReader(new FileReader(file)), file.getName()));
+                } catch (FileNotFoundException e) {
+                    System.err.println(e.getLocalizedMessage());
+                    System.exit(-1);
+                }
+            }
+            if (inputs.size() == 1) inputs.set(0, new Pair<>(inputs.get(0).component1(), null));
         }
-        else {
-            List<String> inputFiles = arguments.subList(1, arguments.size());
-            TailKt.tail(strings, symbols, outFile, inputFiles);
+
+        BufferedWriter writer = null;
+        try {
+            writer = outFile == null ? new BufferedWriter(new OutputStreamWriter(System.out)) : new BufferedWriter(new FileWriter(outFile));
+        } catch (IOException e) {
+            System.err.println(e.getLocalizedMessage());
+            System.exit(-1);
+        }
+
+        TailKt.tail(strings, symbols, writer, inputs);
+
+        if (outFile != null) {
+            try {
+                writer.close();
+            } catch (IOException e) {
+                System.err.println(e.getLocalizedMessage());
+            }
+        }
+
+        if (inputFiles != null && !inputFiles.isEmpty()) {
+            try {
+                for (Pair<BufferedReader, String> input : inputs) {
+                    input.component1().close();
+                }
+            } catch (IOException e) {
+                System.err.println(e.getLocalizedMessage());
+            }
         }
     }
-
 }

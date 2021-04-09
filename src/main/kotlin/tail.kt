@@ -1,7 +1,7 @@
 package main.kotlin
 
-import main.java.Launcher
-import java.io.File
+import java.io.BufferedReader
+import java.io.BufferedWriter
 
 
 //Вариант 9 -- tail
@@ -23,49 +23,34 @@ import java.io.File
 //Кроме самой программы, следует написать автоматические тесты к ней
 
 
-fun main(args: Array<String>) {
-    Launcher.main(args)
-}
-
-fun stringTail(inputFile: String, arg: Int, title: Boolean): String {
-    val inputStrings = File(inputFile).readLines()
+fun stringTail(input: BufferedReader, cutLines: Int, title: String? = null): String {
+    val inputLines = input.readLines()
     return buildString {
-        if (title) append("===>$inputFile<===\n")
-        if (arg < inputStrings.size)
-            for (i in inputStrings.size - arg until inputStrings.size) append("${inputStrings[i]}\n")
-        else
-            for (i in inputStrings) append("$inputStrings\n")
+        title?.let { append("===>$title<===\n") }
+
+        for (i in kotlin.math.max(0, inputLines.size - cutLines) .. inputLines.lastIndex) {
+            appendLine(inputLines[i])
+        }
     }.trimMargin()
 }
 
-fun symbolTail(inputFile: String, arg: Int, title: Boolean): String {
-    val inputStrings = File(inputFile).readLines()
-    val lastString = inputStrings.last()
+fun symbolTail(input: BufferedReader, cutSymbols: Int, title: String? = null): String {
+    val inputText = input.readLines().joinToString(separator = System.lineSeparator())
     return buildString {
-        if (title) append("===>$inputFile<===\n")
-        for (i in lastString.length - arg until lastString.length) append("${lastString[i]}")
+        title?.let { append("===>$title<===\n") }
+        append(inputText.substring( inputText.length - cutSymbols))
     }.trimMargin()
 }
 
-fun tail(strings: Int?, symbols: Int?, outFile: String?, inputFiles: List<String>) {
+fun tail(strings: Int?, symbols: Int?, out: BufferedWriter, inputs: List<Pair<BufferedReader, String?>>) {
     val result = buildString {
         if (symbols != null)
-            for (i in inputFiles) append("${symbolTail(i, symbols, inputFiles.size > 1)}\n")
+            for (i in inputs) append("${symbolTail(i.first, symbols, i.second)}\n")
         else
-            for (i in inputFiles) append("${stringTail(i, strings!!, inputFiles.size > 1)}\n")
+            for (i in inputs) append("${stringTail(i.first, strings!!, i.second)}\n")
     }
-    if (outFile != null)
-        File(outFile).writeText(result)
-    else println(result)
+
+    out.append(result)
+    out.flush()
 }
 
-
-fun tail4CmdInput(symbols: Int?) {
-    val input = readLine()!!
-    if (symbols == null) println(input)
-    else {
-        println(buildString {
-            for (i in input.length - symbols until input.length - 1) append(input[i])
-        })
-    }
-}
